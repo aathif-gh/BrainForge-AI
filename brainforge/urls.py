@@ -17,6 +17,29 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+
+
+def handler500(request, *args, **kwargs):
+    """Custom 500 error handler - returns JSON for AJAX requests."""
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse(
+            {"status": "error", "message": "An internal server error occurred. Please check your GEMINI_API_KEY is set in the Render environment variables."},
+            status=500,
+        )
+    from django.views.defaults import server_error
+    return server_error(request, *args, **kwargs)
+
+
+def handler400(request, exception, *args, **kwargs):
+    """Custom 400 error handler - returns JSON for AJAX requests."""
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse(
+            {"status": "error", "message": str(exception)},
+            status=400,
+        )
+    from django.views.defaults import bad_request
+    return bad_request(request, exception, *args, **kwargs)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

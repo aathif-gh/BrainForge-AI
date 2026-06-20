@@ -77,7 +77,18 @@ function initializeBrainForge() {
                     "X-Requested-With": "XMLHttpRequest"
                 }
             })
-            .then(response => response.json().then(data => ({ status: response.status, data })))
+            .then(response => {
+                const contentType = response.headers.get("content-type") || "";
+                if (contentType.includes("application/json")) {
+                    return response.json().then(data => ({ status: response.status, data }));
+                } else {
+                    // Server returned a non-JSON response (e.g. HTML 500 error page)
+                    return response.text().then(text => ({
+                        status: response.status,
+                        data: { message: `Server error (${response.status}). Check that your GEMINI_API_KEY is set correctly in your deployment environment variables.` }
+                    }));
+                }
+            })
             .then(result => {
                 clearInterval(simulationInterval);
 
@@ -97,7 +108,7 @@ function initializeBrainForge() {
                 } else {
                     // Handle server validation / setup errors
                     overlay.classList.add("hidden");
-                    
+
                     if (result.data.errors) {
                         // Field specific errors
                         Object.keys(result.data.errors).forEach(key => {
@@ -119,7 +130,7 @@ function initializeBrainForge() {
                 clearInterval(simulationInterval);
                 overlay.classList.add("hidden");
                 console.error("Submission error:", error);
-                showGlobalError("Failed to communicate with server. Please ensure the local database server is running.");
+                showGlobalError("Could not reach the server. Please check your internet connection and try again.");
             });
         });
     }
