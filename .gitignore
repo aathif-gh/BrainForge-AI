@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Environment Variables
+.env
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Migrations (optional)
+# Uncomment only if you don't want migrations tracked
+# */migrations/*
+# !*/migrations/__init__.py
+
+# Static Files
+staticfiles/
+media/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build Files
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# ReportLab Generated Files
+*.pdf
+
+# Logs
+logs/
+*.log
+
+# Temporary Files
+*.tmp
+*.bak
+
+# Node (if used later)
+node_modules/
+
+# Cache
+.cache/
+
+# MyPy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# PyCharm
+.idea/
+
+# VS Code Workspace
+*.code-workspace

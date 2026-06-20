@@ -1,0 +1,1283 @@
+{% extends 'planner/base.html' %}
+{% load static %}
+
+{% block title %}BrainForge AI - {{ active_project.idea_name }}{% endblock %}
+
+{% block content %}
+<div class="project-detail-header">
+    <div class="header-info-main">
+        <span class="project-tag">Project Plan</span>
+        <h1>{{ active_project.idea_name }}</h1>
+        <p class="project-meta">Created on {{ active_project.created_at|date:"F d, Y @ H:i" }}</p>
+    </div>
+    <div class="header-actions-panel" style="display: flex; gap: 8px;">
+        <a href="{% url 'planner:download_pdf' active_project.id %}" class="btn-submit" style="background: var(--primary); display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5m-5 5V3"/>
+            </svg>
+            Download Report (PDF)
+        </a>
+        <a href="{% url 'planner:index' %}" class="btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+{% if analysis.is_fallback %}
+<div class="alert-message error-message" style="margin-bottom: 24px; background-color: var(--orange-light); border-color: rgba(249, 115, 22, 0.2); color: #c2410c;">
+    <span class="alert-icon">⚠️</span>
+    <span><strong>Demo Mode Active:</strong> The Gemini API daily request quota has been exceeded. Below is a customized local template analysis generated for testing and demonstration purposes.</span>
+</div>
+{% endif %}
+
+<!-- Grid Layout for Dashboard Modules -->
+<div class="dashboard-grid">
+    
+    <!-- LEFT COLUMN: Main Analysis Content -->
+    <div class="dashboard-column-left">
+        
+        <!-- MODULE 1: BrainForge Readiness Score -->
+        <section class="dashboard-card" id="readiness-section">
+            <div class="card-header">
+                <span class="card-icon">🎯</span>
+                <h2>BrainForge Readiness Score</h2>
+            </div>
+            <div class="card-body">
+                <div class="readiness-container" style="display: flex; align-items: center; gap: 32px; padding: 16px; flex-wrap: wrap;">
+                    
+                    <!-- Circular Progress Indicator -->
+                    <div class="circular-progress-wrapper" style="position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg width="120" height="120" viewBox="0 0 120 120" style="transform: rotate(-90deg);">
+                            <circle cx="60" cy="60" r="50" fill="transparent" stroke="var(--border-color)" stroke-width="10" />
+                            <circle id="readiness-circle-fill" cx="60" cy="60" r="50" fill="transparent" 
+                                    stroke="url(#readiness-gradient)" stroke-width="10" 
+                                    stroke-dasharray="314.16" 
+                                    stroke-dashoffset="calc(314.16 - (314.16 * {{ analysis.readiness_score|default:50 }}) / 100)" 
+                                    stroke-linecap="round" 
+                                    style="transition: stroke-dashoffset 0.8s ease-in-out;" />
+                            <defs>
+                                <linearGradient id="readiness-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="var(--primary)" />
+                                    <stop offset="100%" stop-color="var(--secondary)" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div style="position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <span id="readiness-num-display" style="font-family: var(--font-heading); font-size: 28px; font-weight: 800; color: var(--text-primary);">{{ analysis.readiness_score|default:0 }}</span>
+                            <span style="font-size: 11px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; margin-top: -2px;">Score</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Text Details -->
+                    <div style="flex: 1; min-width: 250px;">
+                        <div style="margin-bottom: 8px;">
+                            <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">Viability Category</span>
+                            <div style="margin-top: 4px;">
+                                <span id="readiness-category-badge" class="confidence-badge" style="font-size: 14px; padding: 4px 12px; border-radius: var(--radius-md); font-weight: 700;
+                                    {% if analysis.readiness_score >= 71 %}
+                                        background-color: var(--green-light); color: var(--green);
+                                    {% elif analysis.readiness_score >= 41 %}
+                                        background-color: var(--blue-light); color: var(--blue);
+                                    {% else %}
+                                        background-color: var(--red-light); color: var(--red);
+                                    {% endif %}">
+                                    {% if analysis.readiness_score >= 71 %}
+                                        Strong Readiness
+                                    {% elif analysis.readiness_score >= 41 %}
+                                        Moderate Readiness
+                                    {% else %}
+                                        High Risk
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <p id="readiness-interpretation" style="font-size: 14px; line-height: 1.6; color: var(--text-secondary); margin-top: 12px; font-style: italic;">
+                            "{{ analysis.readiness_interpretation }}"
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 2: Idea Summary & Clarification -->
+        <section class="dashboard-card" id="idea-summary-section">
+            <div class="card-header">
+                <span class="card-icon">💡</span>
+                <h2>Step 1: Idea Clarification</h2>
+            </div>
+            <div class="card-body">
+                <div class="inputs-summary-box">
+                    <h3>Your Submitted Constraints:</h3>
+                    <div class="inputs-grid">
+                        <div class="input-stat">
+                            <span class="stat-label">Weekly Time:</span>
+                            <span class="stat-value">{{ active_project.time_available }} Hours</span>
+                        </div>
+                        <div class="input-stat">
+                            <span class="stat-label">Budget:</span>
+                            <span class="stat-value">${{ active_project.budget|floatformat:0 }} USD</span>
+                        </div>
+                        <div class="input-stat full-width">
+                            <span class="stat-label">Existing Skills:</span>
+                            <span class="stat-value text-muted">{{ active_project.skills }}</span>
+                        </div>
+                        <div class="input-stat full-width">
+                            <span class="stat-label">Goal / Desired Outcome:</span>
+                            <span class="stat-value text-muted">{{ active_project.goal }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clarification-results">
+                    <div class="clarify-item">
+                        <h4>Problem Statement</h4>
+                        <p>{{ analysis.problem_statement }}</p>
+                    </div>
+                    <div class="clarify-item">
+                        <h4>Target Audience</h4>
+                        <p>{{ analysis.target_audience }}</p>
+                    </div>
+                    <div class="clarify-item">
+                        <h4>Value Proposition</h4>
+                        <p>{{ analysis.value_proposition }}</p>
+                    </div>
+                    <div class="clarify-item">
+                        <h4>Key Assumptions</h4>
+                        <ul class="assumptions-list">
+                            {% for assumption in analysis.key_assumptions %}
+                                <li>{{ assumption }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 3: Hidden Assumptions Analysis -->
+        <section class="dashboard-card" id="assumptions-validator-section">
+            <div class="card-header">
+                <span class="card-icon">🔍</span>
+                <h2>Hidden Assumptions Analysis</h2>
+            </div>
+            <div class="card-body">
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">To protect your execution resources, the AI identified these critical underlying assumptions. Test and validate each before investing large development effort.</p>
+                <div class="assumptions-validator-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+                    {% for item in analysis.assumptions %}
+                        <div class="risk-card" style="border-left: 4px solid 
+                            {% if item.risk == 'High' %}
+                                var(--red)
+                            {% elif item.risk == 'Medium' %}
+                                var(--orange)
+                            {% else %}
+                                var(--green)
+                            {% endif %}; margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                            <div>
+                                <div class="risk-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span class="project-tag" style="background-color: var(--primary-light); color: var(--primary); font-size: 10px;">{{ item.category }} Assumption</span>
+                                    <span class="confidence-badge" style="font-size: 10px; padding: 2px 6px;
+                                        {% if item.risk == 'High' %}
+                                            background-color: var(--red-light); color: var(--red);
+                                        {% elif item.risk == 'Medium' %}
+                                            background-color: var(--orange-light); color: var(--orange);
+                                        {% else %}
+                                            background-color: var(--green-light); color: var(--green);
+                                        {% endif %}">{{ item.risk }} Risk</span>
+                                </div>
+                                <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Assumption:</h4>
+                                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; font-style: italic; line-height: 1.4;">"{{ item.assumption }}"</p>
+                                
+                                <h4 style="font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Explanation:</h4>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">{{ item.explanation }}</p>
+                            </div>
+                            
+                            <div class="mitigation-block" style="background-color: var(--bg-app); border: 1px solid var(--border-color); padding: 8px; border-radius: var(--radius-sm); margin-top: auto;">
+                                <span class="mitigation-label" style="font-size: 10px; font-weight: 700; color: var(--primary); text-transform: uppercase;">Validation Step:</span>
+                                <p class="mitigation-desc" style="font-size: 12px; color: var(--text-primary); margin-top: 4px; font-weight: 500; line-height: 1.4;">{{ item.validation_recommendation }}</p>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: var(--text-muted);">
+                            No hidden assumptions identified. Fill in complete details to run advanced validation analysis.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 4: Feasibility Analysis -->
+        <section class="dashboard-card" id="feasibility-section">
+            <div class="card-header">
+                <span class="card-icon">📊</span>
+                <h2>Step 2: Feasibility Analysis</h2>
+            </div>
+            <div class="card-body">
+                <div class="feasibility-grid">
+                    <div class="feasibility-scores-bars">
+                        <!-- Time Feasibility -->
+                        <div class="progress-score-wrapper">
+                            <div class="score-header">
+                                <span class="score-title">Time Feasibility</span>
+                                <span class="score-badge">{{ analysis.feasibility_score.time_score }}/10</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill fill-purple" style="width: calc({{ analysis.feasibility_score.time_score }} * 10%)"></div>
+                            </div>
+                            <p class="score-rationale">{{ analysis.feasibility_score.time_rationale }}</p>
+                        </div>
+                        
+                        <!-- Budget Feasibility -->
+                        <div class="progress-score-wrapper">
+                            <div class="score-header">
+                                <span class="score-title">Budget Feasibility</span>
+                                <span class="score-badge">{{ analysis.feasibility_score.budget_score }}/10</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill fill-blue" style="width: calc({{ analysis.feasibility_score.budget_score }} * 10%)"></div>
+                            </div>
+                            <p class="score-rationale">{{ analysis.feasibility_score.budget_rationale }}</p>
+                        </div>
+                        
+                        <!-- Skill Feasibility -->
+                        <div class="progress-score-wrapper">
+                            <div class="score-header">
+                                <span class="score-title">Skill Feasibility</span>
+                                <span class="score-badge">{{ analysis.feasibility_score.skill_score }}/10</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill fill-cyan" style="width: calc({{ analysis.feasibility_score.skill_score }} * 10%)"></div>
+                            </div>
+                            <p class="score-rationale">{{ analysis.feasibility_score.skill_rationale }}</p>
+                        </div>
+
+                        <!-- Overall Feasibility -->
+                        <div class="progress-score-wrapper overall-wrapper">
+                            <div class="score-header">
+                                <span class="score-title font-bold">Overall Feasibility</span>
+                                <span class="score-badge overall-badge">{{ analysis.feasibility_score.overall_score }}/10</span>
+                            </div>
+                            <div class="progress-track track-large">
+                                <div class="progress-fill fill-gradient" style="width: calc({{ analysis.feasibility_score.overall_score }} * 10%)"></div>
+                            </div>
+                            <p class="score-rationale font-semibold">{{ analysis.feasibility_score.overall_rationale }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- ChartJS Radar/Bar Chart Container -->
+                    <div class="feasibility-chart-container">
+                        <canvas id="feasibilityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 5: Risk Assessment -->
+        <section class="dashboard-card" id="risks-section">
+            <div class="card-header">
+                <span class="card-icon">🛡️</span>
+                <h2>Step 3: Risk Assessment &amp; Mitigation</h2>
+            </div>
+            <div class="card-body">
+                <div class="risks-layout-grid">
+                    <!-- Technical Risks -->
+                    <div class="risk-card risk-border-purple">
+                        <div class="risk-card-header">
+                            <span class="risk-badge badge-purple">Technical Risk</span>
+                        </div>
+                        <p class="risk-desc"><strong>Hurdle:</strong> {{ analysis.risks.technical.description }}</p>
+                        <div class="mitigation-block">
+                            <span class="mitigation-label">Mitigation Strategy:</span>
+                            <p class="mitigation-desc">{{ analysis.risks.technical.mitigation }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Resource Risks -->
+                    <div class="risk-card risk-border-blue">
+                        <div class="risk-card-header">
+                            <span class="risk-badge badge-blue">Resource Risk</span>
+                        </div>
+                        <p class="risk-desc"><strong>Hurdle:</strong> {{ analysis.risks.resource.description }}</p>
+                        <div class="mitigation-block">
+                            <span class="mitigation-label">Mitigation Strategy:</span>
+                            <p class="mitigation-desc">{{ analysis.risks.resource.mitigation }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Market Risks -->
+                    <div class="risk-card risk-border-cyan">
+                        <div class="risk-card-header">
+                            <span class="risk-badge badge-cyan">Market Risk</span>
+                        </div>
+                        <p class="risk-desc"><strong>Hurdle:</strong> {{ analysis.risks.market.description }}</p>
+                        <div class="mitigation-block">
+                            <span class="mitigation-label">Mitigation Strategy:</span>
+                            <p class="mitigation-desc">{{ analysis.risks.market.mitigation }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Skill Gaps -->
+                    <div class="risk-card risk-border-orange">
+                        <div class="risk-card-header">
+                            <span class="risk-badge badge-orange">Skill Gap</span>
+                        </div>
+                        <p class="risk-desc"><strong>Hurdle:</strong> {{ analysis.risks.skills.description }}</p>
+                        <div class="mitigation-block">
+                            <span class="mitigation-label">Mitigation Strategy:</span>
+                            <p class="mitigation-desc">{{ analysis.risks.skills.mitigation }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 6: Scenario Simulation -->
+        <section class="dashboard-card" id="scenarios-section">
+            <div class="card-header">
+                <span class="card-icon">📈</span>
+                <h2>Step 4: Scenario Simulation</h2>
+            </div>
+            <div class="card-body">
+                <div class="scenarios-layout-grid">
+                    <!-- Optimistic -->
+                    <div class="scenario-panel panel-optimistic">
+                        <div class="scenario-panel-header">
+                            <h3>Optimistic</h3>
+                            <div class="probability-indicator bg-green-light">
+                                <span class="prob-num" id="lbl-cur-optprob">{{ analysis.scenarios.optimistic.probability }}%</span>
+                                <span class="prob-label">Success Prob.</span>
+                            </div>
+                        </div>
+                        <div class="scenario-panel-body">
+                            <h4>Expected Outcome</h4>
+                            <p>{{ analysis.scenarios.optimistic.outcome }}</p>
+                            <h4>Success Drivers</h4>
+                            <ul class="driver-tags">
+                                {% for factor in analysis.scenarios.optimistic.factors %}
+                                    <li>{{ factor }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Realistic -->
+                    <div class="scenario-panel panel-realistic">
+                        <div class="scenario-panel-header">
+                            <h3>Realistic</h3>
+                            <div class="probability-indicator bg-blue-light">
+                                <span class="prob-num" id="lbl-cur-realprob">{{ analysis.scenarios.realistic.probability }}%</span>
+                                <span class="prob-label">Success Prob.</span>
+                            </div>
+                        </div>
+                        <div class="scenario-panel-body">
+                            <h4>Expected Outcome</h4>
+                            <p>{{ analysis.scenarios.realistic.outcome }}</p>
+                            <h4>Success Drivers</h4>
+                            <ul class="driver-tags">
+                                {% for factor in analysis.scenarios.realistic.factors %}
+                                    <li>{{ factor }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Pessimistic -->
+                    <div class="scenario-panel panel-pessimistic">
+                        <div class="scenario-panel-header">
+                            <h3>Pessimistic</h3>
+                            <div class="probability-indicator bg-red-light">
+                                <span class="prob-num" id="lbl-cur-pessprob">{{ analysis.scenarios.pessimistic.probability }}%</span>
+                                <span class="prob-label">Success Prob.</span>
+                            </div>
+                        </div>
+                        <div class="scenario-panel-body">
+                            <h4>Expected Outcome</h4>
+                            <p>{{ analysis.scenarios.pessimistic.outcome }}</p>
+                            <h4>Success Drivers</h4>
+                            <ul class="driver-tags">
+                                {% for factor in analysis.scenarios.pessimistic.factors %}
+                                    <li>{{ factor }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 7: Scenario Sandbox (Interactive What-If Simulator) -->
+        <section class="dashboard-card" id="sandbox-section">
+            <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                <span class="card-icon">🎮</span>
+                <h2>Scenario Sandbox (What-If Simulator)</h2>
+            </div>
+            <div class="card-body">
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">Dynamically adjust your execution constraints below to simulate how changes in budget, hours, team support, and skills affect overall project feasibility and success.</p>
+                
+                <div class="sandbox-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; margin-bottom: 24px;">
+                    <!-- Left: Control Sliders -->
+                    <div class="sandbox-controls" style="display: flex; flex-direction: column; gap: 20px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Simulation Parameters</h3>
+                        
+                        <!-- Budget -->
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                                <label for="sandbox-budget" style="font-weight: 600; font-size: 13px;">Simulated Budget:</label>
+                                <span id="val-sandbox-budget" style="font-family: var(--font-heading); font-weight: 700; color: var(--primary); font-size: 14px;">${{ active_project.budget|floatformat:0 }}</span>
+                            </div>
+                            <input type="range" id="sandbox-budget" min="0" max="{% if active_project.budget > 10000 %}{{ active_project.budget|floatformat:0 }}{% else %}10000{% endif %}" step="100" value="{{ active_project.budget|floatformat:0 }}" style="width: 100%; accent-color: var(--primary); height: 6px; border-radius: 3px; cursor: pointer;">
+                        </div>
+                        
+                        <!-- Hours -->
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                                <label for="sandbox-time" style="font-weight: 600; font-size: 13px;">Simulated Hours/Week:</label>
+                                <span id="val-sandbox-time" style="font-family: var(--font-heading); font-weight: 700; color: var(--primary); font-size: 14px;">{{ active_project.time_available }} hrs</span>
+                            </div>
+                            <input type="range" id="sandbox-time" min="1" max="168" step="1" value="{{ active_project.time_available }}" style="width: 100%; accent-color: var(--primary); height: 6px; border-radius: 3px; cursor: pointer;">
+                        </div>
+                        
+                        <!-- Team Size -->
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                                <label for="sandbox-team" style="font-weight: 600; font-size: 13px;">Simulated Team Size:</label>
+                                <span id="val-sandbox-team" style="font-family: var(--font-heading); font-weight: 700; color: var(--primary); font-size: 14px;">1 person</span>
+                            </div>
+                            <input type="range" id="sandbox-team" min="1" max="10" step="1" value="1" style="width: 100%; accent-color: var(--primary); height: 6px; border-radius: 3px; cursor: pointer;">
+                        </div>
+                        
+                        <!-- Skill Level -->
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                                <label for="sandbox-skills" style="font-weight: 600; font-size: 13px;">Simulated Skill Match:</label>
+                                <span id="val-sandbox-skills" style="font-family: var(--font-heading); font-weight: 700; color: var(--primary); font-size: 14px;">{{ analysis.feasibility_score.skill_score }}/10</span>
+                            </div>
+                            <input type="range" id="sandbox-skills" min="1" max="10" step="1" value="{{ analysis.feasibility_score.skill_score }}" style="width: 100%; accent-color: var(--primary); height: 6px; border-radius: 3px; cursor: pointer;">
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Comparison Display -->
+                    <div class="sandbox-metrics" style="display: flex; flex-direction: column; justify-content: space-between; background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
+                        <div>
+                            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px;">Simulation Results</h3>
+                            
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid var(--border-color);">
+                                        <th style="padding: 8px 0; font-weight: 700; color: var(--text-muted);">Metric</th>
+                                        <th style="padding: 8px 0; font-weight: 700; color: var(--text-primary); text-align: center;">Current</th>
+                                        <th style="padding: 8px 0; font-weight: 700; color: var(--primary); text-align: center;">Simulated</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 8px 0; font-weight: 600;">Readiness Score</td>
+                                        <td id="td-cur-readiness" style="padding: 8px 0; text-align: center; font-weight: bold;">{{ analysis.readiness_score }}</td>
+                                        <td id="td-sim-readiness" style="padding: 8px 0; text-align: center; font-weight: bold; color: var(--primary);">{{ analysis.readiness_score }}</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 8px 0; font-weight: 600;">Category</td>
+                                        <td id="td-cur-category" style="padding: 8px 0; text-align: center; font-size: 11px;">
+                                            {% if analysis.readiness_score >= 71 %}Strong{% elif analysis.readiness_score >= 41 %}Moderate{% else %}High Risk{% endif %}
+                                        </td>
+                                        <td id="td-sim-category" style="padding: 8px 0; text-align: center; font-size: 11px; font-weight: bold; color: var(--primary);">
+                                            {% if analysis.readiness_score >= 71 %}Strong{% elif analysis.readiness_score >= 41 %}Moderate{% else %}High Risk{% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 8px 0; font-weight: 600;">Execution Level</td>
+                                        <td id="td-cur-difficulty" style="padding: 8px 0; text-align: center;">
+                                            {% if analysis.readiness_score >= 75 %}Easy{% elif analysis.readiness_score >= 50 %}Medium{% elif analysis.readiness_score >= 30 %}Hard{% else %}Extreme{% endif %}
+                                        </td>
+                                        <td id="td-sim-difficulty" style="padding: 8px 0; text-align: center; font-weight: bold; color: var(--primary);">
+                                            {% if analysis.readiness_score >= 75 %}Easy{% elif analysis.readiness_score >= 50 %}Medium{% elif analysis.readiness_score >= 30 %}Hard{% else %}Extreme{% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 8px 0; font-weight: 600;">Realistic Prob.</td>
+                                        <td id="td-cur-realprob" style="padding: 8px 0; text-align: center;">{{ analysis.scenarios.realistic.probability }}%</td>
+                                        <td id="td-sim-realprob" style="padding: 8px 0; text-align: center; font-weight: bold; color: var(--primary);">{{ analysis.scenarios.realistic.probability }}%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 16px; border-top: 1.5px solid var(--border-color); padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--primary);"></span>
+                                <span>Time Score: <b id="lbl-sim-time">{{ analysis.feasibility_score.time_score }}/10</b></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--blue);"></span>
+                                <span>Budget Score: <b id="lbl-sim-budget">{{ analysis.feasibility_score.budget_score }}/10</b></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--cyan);"></span>
+                                <span>Skill Score: <b id="lbl-sim-skills">{{ analysis.feasibility_score.skill_score }}/10</b></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--orange);"></span>
+                                <span>Risk Score: <b id="lbl-sim-risk">{{ analysis.risk_level }}/10</b></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sandbox Comparison Chart -->
+                <div class="sandbox-chart-container" style="position: relative; height: 260px; width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; background: var(--bg-card);">
+                    <canvas id="sandboxChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 10: Multi-Perspective AI Debate -->
+        <section class="dashboard-card" id="mentor-debate-section" style="transition: var(--transition-smooth);">
+            <div class="card-header" style="border-bottom: 1.5px solid var(--border-color); padding-bottom: 12px; margin-bottom: 20px;">
+                <span class="card-icon">🧠</span>
+                <h2>Multi-Perspective AI Debate</h2>
+            </div>
+            <div class="card-body">
+                <div class="responsible-warning" style="margin-bottom: 20px; background-color: var(--red-light); color: var(--red); padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; display: flex; gap: 8px; align-items: flex-start; border-left: 4px solid var(--red); line-height: 1.5;">
+                    <span style="font-size: 16px; line-height: 1;">⚠️</span>
+                    <span><strong>Responsible AI Notice:</strong> Alternative perspectives are generated to encourage critical thinking and should not be interpreted as definitive advice.</span>
+                </div>
+                
+                <div class="debate-perspectives-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 24px;">
+                    <!-- Builder Perspective -->
+                    <div class="debate-card builder-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; background: var(--bg-app); display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--primary); min-height: 250px; box-shadow: var(--shadow-sm);">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                <span style="font-size: 20px;">🔨</span>
+                                <h3 style="font-size: 14px; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);">Builder</h3>
+                            </div>
+                            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.05em;">Recommendation:</div>
+                            <p style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); margin-bottom: 12px;">{{ analysis.mentor_debate_results.builder.recommendation }}</p>
+                            
+                            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.05em;">Main Concern:</div>
+                            <p style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); margin-bottom: 12px;">{{ analysis.mentor_debate_results.builder.concern }}</p>
+                        </div>
+                        <div style="background: rgba(99, 102, 241, 0.08); padding: 10px; border-radius: var(--radius-sm); border: 1.5px dashed var(--primary); margin-top: auto;">
+                            <span style="font-size: 10px; font-weight: 700; color: var(--primary); text-transform: uppercase;">Suggested Next Step:</span>
+                            <p style="font-size: 12px; color: var(--text-primary); margin-top: 4px; font-weight: 600; line-height: 1.3;">{{ analysis.mentor_debate_results.builder.next_step }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Investor Perspective -->
+                    <div class="debate-card investor-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; background: var(--bg-app); display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--secondary); min-height: 250px; box-shadow: var(--shadow-sm);">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                <span style="font-size: 20px;">💰</span>
+                                <h3 style="font-size: 14px; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);">Investor</h3>
+                            </div>
+                            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.05em;">Recommendation:</div>
+                            <p style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); margin-bottom: 12px;">{{ analysis.mentor_debate_results.investor.recommendation }}</p>
+                            
+                            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.05em;">Main Concern:</div>
+                            <p style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); margin-bottom: 12px;">{{ analysis.mentor_debate_results.investor.concern }}</p>
+                        </div>
+                        <div style="background: rgba(139, 92, 246, 0.08); padding: 10px; border-radius: var(--radius-sm); border: 1.5px dashed var(--secondary); margin-top: auto;">
+                            <span style="font-size: 10px; font-weight: 700; color: var(--secondary); text-transform: uppercase;">Suggested Next Step:</span>
+                            <p style="font-size: 12px; color: var(--text-primary); margin-top: 4px; font-weight: 600; line-height: 1.3;">{{ analysis.mentor_debate_results.investor.next_step }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Engineer Perspective -->
+                    <div class="debate-card engineer-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; background: var(--bg-app); display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid var(--cyan); min-height: 250px; box-shadow: var(--shadow-sm);">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                <span style="font-size: 20px;">⚙️</span>
+                                <h3 style="font-size: 14px; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);">Engineer</h3>
+                            </div>
+                            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.05em;">Recommendation:</div>
+                            <p style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); margin-bottom: 12px;">{{ analysis.mentor_debate_results.engineer.recommendation }}</p>
+                            
+                            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.05em;">Main Concern:</div>
+                            <p style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); margin-bottom: 12px;">{{ analysis.mentor_debate_results.engineer.concern }}</p>
+                        </div>
+                        <div style="background: rgba(6, 182, 212, 0.08); padding: 10px; border-radius: var(--radius-sm); border: 1.5px dashed var(--cyan); margin-top: auto;">
+                            <span style="font-size: 10px; font-weight: 700; color: var(--cyan); text-transform: uppercase;">Suggested Next Step:</span>
+                            <p style="font-size: 12px; color: var(--text-primary); margin-top: 4px; font-weight: 600; line-height: 1.3;">{{ analysis.mentor_debate_results.engineer.next_step }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="debate-agreements-panel" style="border-top: 1px solid var(--border-color); padding-top: 20px; display: flex; flex-direction: column; gap: 16px;">
+                    <div>
+                        <h4 style="font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">🤝 Areas of Agreement</h4>
+                        <p style="font-size: 13px; line-height: 1.5; color: var(--text-secondary);">{{ analysis.mentor_debate_results.agreement }}</p>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 13px; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">⚡ Areas of Disagreement</h4>
+                        <p style="font-size: 13px; line-height: 1.5; color: var(--text-secondary);">{{ analysis.mentor_debate_results.disagreement }}</p>
+                    </div>
+                    <div style="background-color: var(--bg-app); border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; margin-top: 4px; box-shadow: var(--shadow-sm);">
+                        <h4 style="font-size: 11px; font-weight: 800; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">⚖️ Tradeoff Summary</h4>
+                        <p style="font-size: 13px; line-height: 1.6; color: var(--text-secondary); font-style: italic;">"{{ analysis.mentor_debate_results.tradeoff_summary }}"</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 11: Opportunity Cost Analyzer -->
+        <section class="dashboard-card" id="opportunity-cost-section" style="transition: var(--transition-smooth);">
+            <div class="card-header" style="border-bottom: 1.5px solid var(--border-color); padding-bottom: 12px; margin-bottom: 20px;">
+                <span class="card-icon">⚖️</span>
+                <h2>Opportunity Cost Analysis</h2>
+            </div>
+            <div class="card-body">
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">Every project decision requires sacrificing alternative outcomes. The AI evaluated the tradeoffs of choosing this project over your other professional routes:</p>
+                
+                <!-- Net Score Gauge -->
+                <div class="net-score-container" style="background-color: var(--bg-app); border: 1.5px dashed var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; box-shadow: var(--shadow-sm);">
+                    <div style="flex: 1; min-width: 200px;">
+                        <h3 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; font-family: var(--font-heading);">Net Opportunity Score</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">A higher score indicates the project builds significant long-term growth assets relative to sacrificed alternatives.</p>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="position: relative; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--bg-card); border: 4px solid var(--green); border-radius: 50%; box-shadow: var(--shadow-sm);">
+                            <span style="font-family: var(--font-heading); font-size: 22px; font-weight: 800; color: var(--green);">{{ analysis.opportunity_cost_analysis.net_opportunity_score }}</span>
+                        </div>
+                        <div>
+                            <span class="confidence-badge" style="background-color: var(--green-light); color: var(--green); font-size: 11px; font-weight: bold; border-radius: 4px; padding: 4px 8px;">Positive Venture</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Side by Side Tables -->
+                <div class="opportunity-comparison-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 20px;">
+                    <!-- Gained Benefits -->
+                    <div class="opp-table-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+                        <div style="background-color: var(--green); color: white; padding: 12px 16px; font-family: var(--font-heading); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; gap: 8px;">
+                            <span>📈</span> Potential Benefits / Gained
+                        </div>
+                        <ul style="padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--bg-card); list-style: none; margin: 0; flex: 1;">
+                            {% for b in analysis.opportunity_cost_analysis.benefits %}
+                                <li style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); position: relative; padding-left: 20px;">
+                                    <span style="position: absolute; left: 0; color: var(--green); font-weight: bold;">✓</span> {{ b }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Sacrificed opportunities -->
+                    <div class="opp-table-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+                        <div style="background-color: var(--orange); color: white; padding: 12px 16px; font-family: var(--font-heading); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; gap: 8px;">
+                            <span>⏳</span> Sacrificed Alternatives
+                        </div>
+                        <ul style="padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--bg-card); list-style: none; margin: 0; flex: 1;">
+                            {% for m in analysis.opportunity_cost_analysis.missed_opportunities %}
+                                <li style="font-size: 13px; line-height: 1.4; color: var(--text-secondary); position: relative; padding-left: 20px;">
+                                    <span style="position: absolute; left: 0; color: var(--orange); font-weight: bold;">✗</span> {{ m }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="opp-summary-panel" style="border-top: 1.5px solid var(--border-color); padding-top: 18px; margin-top: 24px;">
+                    <h3 style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.05em;">Opportunity Cost Summary</h3>
+                    <p style="font-size: 13px; line-height: 1.5; color: var(--text-secondary); font-style: italic;">"{{ analysis.opportunity_cost_analysis.summary }}"</p>
+                </div>
+            </div>
+        </section>
+        
+    </div>
+
+    <!-- RIGHT COLUMN: Roadmap & Today's Actions -->
+    <div class="dashboard-column-right">
+        
+        <!-- MODULE 8: Today's Action Banner (Top Right for Maximum Visibility) -->
+        <section class="action-banner-card">
+            <div class="action-banner-header">
+                <span class="action-badge">🔥 Immediate Action Recommended</span>
+            </div>
+            <div class="action-banner-content">
+                <h2>Today's Immediate Next Step:</h2>
+                <div class="action-highlight-box">
+                    <p class="action-text">"{{ analysis.first_action }}"</p>
+                </div>
+                <p class="action-incentive">Do not let analysis paralysis stall you. Commit to completing this one single task today to build momentum.</p>
+            </div>
+        </section>
+
+        <!-- MODULE 9: Roadmap Timeline -->
+        <section class="dashboard-card" id="roadmap-section">
+            <div class="card-header">
+                <span class="card-icon">📅</span>
+                <h2>Step 5: Roadmap Timeline</h2>
+            </div>
+            <div class="card-body">
+                <div class="roadmap-timeline-flow">
+                    <!-- Day 30 -->
+                    <div class="timeline-milestone">
+                        <div class="milestone-marker bg-purple">30</div>
+                        <div class="milestone-details">
+                            <span class="milestone-period">Days 1 - 30</span>
+                            <h3 class="milestone-title">{{ analysis.roadmap.day_30.milestone }}</h3>
+                            <ul class="milestone-tasks-list">
+                                {% for task in analysis.roadmap.day_30.tasks %}
+                                    <li class="task-checkbox-item">
+                                        <input type="checkbox" id="task-30-{{ forloop.index }}">
+                                        <label for="task-30-{{ forloop.index }}">{{ task }}</label>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Day 60 -->
+                    <div class="timeline-milestone">
+                        <div class="milestone-marker bg-blue">60</div>
+                        <div class="milestone-details">
+                            <span class="milestone-period">Days 31 - 60</span>
+                            <h3 class="milestone-title">{{ analysis.roadmap.day_60.milestone }}</h3>
+                            <ul class="milestone-tasks-list">
+                                {% for task in analysis.roadmap.day_60.tasks %}
+                                    <li class="task-checkbox-item">
+                                        <input type="checkbox" id="task-60-{{ forloop.index }}">
+                                        <label for="task-60-{{ forloop.index }}">{{ task }}</label>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Day 90 -->
+                    <div class="timeline-milestone">
+                        <div class="milestone-marker bg-cyan">90</div>
+                        <div class="milestone-details">
+                            <span class="milestone-period">Days 61 - 90</span>
+                            <h3 class="milestone-title">{{ analysis.roadmap.day_90.milestone }}</h3>
+                            <ul class="milestone-tasks-list">
+                                {% for task in analysis.roadmap.day_90.tasks %}
+                                    <li class="task-checkbox-item">
+                                        <input type="checkbox" id="task-90-{{ forloop.index }}">
+                                        <label for="task-90-{{ forloop.index }}">{{ task }}</label>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RESPONSIBLE AI SECTION & CONFIDENCE METER -->
+        <section class="dashboard-card responsible-ai-card">
+            <div class="card-header border-none">
+                <span class="card-icon">🛡️</span>
+                <h2>Responsible AI &amp; Confidence Meter</h2>
+            </div>
+            <div class="card-body">
+                <!-- Percentage Meter -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">AI Confidence Score:</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="confidence-percentage" style="font-family: var(--font-heading); font-size: 18px; font-weight: 800; color: var(--primary);">{{ analysis.confidence_score|default:75 }}%</span>
+                            <span id="confidence-badge-display" class="confidence-badge" style="font-size: 11px; padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700;
+                                {% if analysis.confidence_score >= 80 %}
+                                    background-color: var(--green-light); color: var(--green);
+                                {% elif analysis.confidence_score >= 50 %}
+                                    background-color: var(--blue-light); color: var(--blue);
+                                {% else %}
+                                    background-color: var(--red-light); color: var(--red);
+                                {% endif %}">
+                                {% if analysis.confidence_score >= 80 %}
+                                    High Confidence
+                                {% elif analysis.confidence_score >= 50 %}
+                                    Medium Confidence
+                                {% else %}
+                                    Low Confidence
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Progress track -->
+                    <div class="progress-track" style="height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden;">
+                        <div id="confidence-fill" class="progress-fill" style="height: 100%; width: {{ analysis.confidence_score|default:75 }}%; 
+                            {% if analysis.confidence_score >= 80 %}
+                                background-color: var(--green);
+                            {% elif analysis.confidence_score >= 50 %}
+                                background-color: var(--blue);
+                            {% else %}
+                                background-color: var(--red);
+                            {% endif %}; transition: width 0.8s ease-in-out;"></div>
+                    </div>
+                </div>
+
+                <!-- Reasoning -->
+                <div class="clarification-results" style="margin-bottom: 20px; border-top: none; padding-top: 0; margin-top: 0;">
+                    <div class="clarify-item" style="border-bottom: none; padding-bottom: 0;">
+                        <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Reasoning Summary:</h4>
+                        <p id="confidence-reasoning" style="font-size: 13px; line-height: 1.5; color: var(--text-secondary); margin-top: 4px;">{{ analysis.confidence_reasoning }}</p>
+                    </div>
+                </div>
+
+                <div class="disclaimer-alert" style="background-color: var(--bg-app); border-left: 4px solid var(--primary); padding: 12px; border-radius: var(--radius-sm);">
+                    <span class="disclaimer-title" style="font-size: 11px; font-weight: 700; color: var(--text-primary); text-transform: uppercase;">Disclaimer:</span>
+                    <p class="disclaimer-text" style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 4px;">"BrainForge AI provides decision-support insights, not final decisions. Users remain responsible for all execution choices."</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE 12: Cognitive Blind Spot Detector -->
+        <section class="dashboard-card" id="blind-spots-section" style="border-color: var(--orange); transition: var(--transition-smooth);">
+            <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 20px;">
+                <span class="card-icon">🚨</span>
+                <h2>Blind Spot Analysis</h2>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 18px; padding-top: 0;">
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 4px;">AI spotted these potential cognitive weaknesses or missing validation loops in your project design. Focus validation efforts on these high-impact gaps:</p>
+                
+                {% for spot in analysis.blind_spot_analysis %}
+                    <div class="blind-spot-card" style="border-left: 4px solid 
+                        {% if spot.impact == 'High' %}
+                            var(--red)
+                        {% elif spot.impact == 'Medium' %}
+                            var(--orange)
+                        {% else %}
+                            var(--green)
+                        {% endif %}; background-color: var(--bg-app); border: 1px solid var(--border-color); border-left-width: 4px; padding: 14px; border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);">{{ spot.name }}</span>
+                            <span class="confidence-badge" style="font-size: 10px; padding: 2px 6px;
+                                {% if spot.impact == 'High' %}
+                                    background-color: var(--red-light); color: var(--red);
+                                {% elif spot.impact == 'Medium' %}
+                                    background-color: var(--orange-light); color: var(--orange);
+                                {% else %}
+                                    background-color: var(--green-light); color: var(--green);
+                                {% endif %}">{{ spot.impact }} Impact</span>
+                        </div>
+                        
+                        <p style="font-size: 12px; line-height: 1.5; color: var(--text-secondary); margin-bottom: 10px;">{{ spot.explanation }}</p>
+                        
+                        <div style="background-color: white; border: 1.5px dashed var(--border-color); border-radius: 4px; padding: 8px 12px; display: flex; flex-direction: column; gap: 4px;">
+                            <span style="font-size: 9px; font-weight: 800; color: var(--primary); text-transform: uppercase;">Validation Action:</span>
+                            <p style="font-size: 11px; line-height: 1.4; color: var(--text-primary); font-weight: 600; margin: 0;">{{ spot.recommendation }}</p>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div style="text-align: center; padding: 16px; color: var(--text-muted); font-size: 13px;">No critical blind spots flagged. Project details are well-scoped!</div>
+                {% endfor %}
+            </div>
+        </section>
+        
+    </div>
+</div>
+
+<!-- Floating AI Assistant Chatbot Button -->
+<div class="chatbot-trigger-btn" id="chatbot-trigger" title="Open BrainForge Coach">
+    <span class="chatbot-icon">💬</span>
+    <span class="chatbot-badge-dot"></span>
+</div>
+
+<!-- Chatbot Panel Container -->
+<div class="chatbot-panel-container" id="chatbot-panel" style="display: none;">
+    <!-- Header -->
+    <div class="chatbot-header">
+        <div class="chatbot-header-left">
+            <span class="chatbot-header-avatar">🤖</span>
+            <div>
+                <h3>BrainForge Coach</h3>
+                <span class="chatbot-status-indicator"><span class="status-dot"></span> Online</span>
+            </div>
+        </div>
+        <button class="chatbot-minimize-btn" id="chatbot-minimize" title="Minimize">×</button>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="chatbot-messages" id="chatbot-messages-box">
+        <!-- Pre-populated database history -->
+        {% for msg in chat_history %}
+            <div class="chat-message {% if msg.role == 'user' %}user-msg{% else %}coach-msg{% endif %}">
+                <p>{{ msg.content|linebreaksbr }}</p>
+                <span class="chat-time">{{ msg.timestamp|date:"H:i" }}</span>
+            </div>
+        {% empty %}
+            <div class="chat-welcome-card">
+                <h4>Welcome to Coach mode! 🧠</h4>
+                <p>I am your startup advisor. Ask me questions about your feasibility score, project risks, or roadmap timeline.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Starter Prompts Row -->
+    <div class="chatbot-starter-prompts">
+        <button class="starter-prompt-pill" data-prompt="Why is my feasibility score low?">Why is my feasibility score low?</button>
+        <button class="starter-prompt-pill" data-prompt="Explain my risks.">Explain my risks.</button>
+        <button class="starter-prompt-pill" data-prompt="How can I improve my readiness score?">How can I improve my readiness score?</button>
+        <button class="starter-prompt-pill" data-prompt="Summarize my roadmap.">Summarize my roadmap.</button>
+        <button class="starter-prompt-pill" data-prompt="What should I do first?">What should I do first?</button>
+        <button class="starter-prompt-pill" data-prompt="What skills am I missing?">What skills am I missing?</button>
+    </div>
+
+    <!-- Responsible AI notice footer -->
+    <div class="chatbot-footer-notice">
+        <p>BrainForge Coach provides guidance and explanations. Final decisions remain with the user.</p>
+    </div>
+
+    <!-- Input Form -->
+    <form class="chatbot-input-form" id="chatbot-form">
+        <input type="text" id="chatbot-input" placeholder="Ask BrainForge Coach..." autocomplete="off" required>
+        <button type="submit" id="chatbot-send-btn" title="Send message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // --- 1. INITIALIZE STATIC FEASIBILITY CHART ---
+        const ctxFeas = document.getElementById('feasibilityChart').getContext('2d');
+        const timeScore = {{ analysis.feasibility_score.time_score|default:5 }};
+        const budgetScore = {{ analysis.feasibility_score.budget_score|default:5 }};
+        const skillScore = {{ analysis.feasibility_score.skill_score|default:5 }};
+        const overallScore = {{ analysis.feasibility_score.overall_score|default:5 }};
+
+        new Chart(ctxFeas, {
+            type: 'bar',
+            data: {
+                labels: ['Time', 'Budget', 'Skills', 'Overall'],
+                datasets: [{
+                    label: 'Feasibility Score (1-10)',
+                    data: [timeScore, budgetScore, skillScore, overallScore],
+                    backgroundColor: [
+                        'rgba(147, 51, 234, 0.7)',
+                        'rgba(59, 130, 246, 0.7)',
+                        'rgba(6, 182, 212, 0.7)',
+                        'rgba(139, 92, 246, 0.85)'
+                    ],
+                    borderColor: [
+                        '#9333ea',
+                        '#3b82f6',
+                        '#06b6d4',
+                        '#8b5cf6'
+                    ],
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    barThickness: 24,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        min: 0,
+                        max: 10,
+                        grid: { color: '#f3f4f6' },
+                        ticks: { stepSize: 1, font: { family: 'Inter', size: 11 } }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Outfit', weight: '500', size: 13 } }
+                    }
+                }
+            }
+        });
+
+        // --- 2. INITIALIZE INTERACTIVE SANDBOX CHART ---
+        const ctxSand = document.getElementById('sandboxChart').getContext('2d');
+        const initRisk = {{ analysis.risk_level|default:5 }};
+        const initReadiness = {{ analysis.readiness_score|default:50 }};
+
+        const sandboxChart = new Chart(ctxSand, {
+            type: 'bar',
+            data: {
+                labels: ['Time', 'Budget', 'Skills', 'Risk Index'],
+                datasets: [
+                    {
+                        label: 'Current Setup',
+                        data: [timeScore, budgetScore, skillScore, initRisk],
+                        backgroundColor: 'rgba(99, 102, 241, 0.3)',
+                        borderColor: '#6366f1',
+                        borderWidth: 1.5,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Simulated Setup',
+                        data: [timeScore, budgetScore, skillScore, initRisk],
+                        backgroundColor: 'rgba(139, 92, 246, 0.85)',
+                        borderColor: '#8b5cf6',
+                        borderWidth: 1.5,
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { font: { family: 'Inter', size: 11 } }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 10,
+                        grid: { color: '#f3f4f6' },
+                        ticks: { stepSize: 2, font: { family: 'Inter', size: 11 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Outfit', size: 12, weight: '500' } }
+                    }
+                }
+            }
+        });
+
+        // --- 3. AJAX WHAT-IF SIMULATOR HANDLERS ---
+        const budgetSlider = document.getElementById('sandbox-budget');
+        const timeSlider = document.getElementById('sandbox-time');
+        const teamSlider = document.getElementById('sandbox-team');
+        const skillSlider = document.getElementById('sandbox-skills');
+
+        const valBudget = document.getElementById('val-sandbox-budget');
+        const valTime = document.getElementById('val-sandbox-time');
+        const valTeam = document.getElementById('val-sandbox-team');
+        const valSkills = document.getElementById('val-sandbox-skills');
+
+        // Text outputs
+        const tdSimReadiness = document.getElementById('td-sim-readiness');
+        const tdSimCategory = document.getElementById('td-sim-category');
+        const tdSimDifficulty = document.getElementById('td-sim-difficulty');
+        const tdSimRealProb = document.getElementById('td-sim-realprob');
+
+        const lblSimTime = document.getElementById('lbl-sim-time');
+        const lblSimBudget = document.getElementById('lbl-sim-budget');
+        const lblSimSkills = document.getElementById('lbl-sim-skills');
+        const lblSimRisk = document.getElementById('lbl-sim-risk');
+
+        // Circular score indicators
+        const readinessCircle = document.getElementById('readiness-circle-fill');
+        const readinessNumDisplay = document.getElementById('readiness-num-display');
+        const readinessCategoryBadge = document.getElementById('readiness-category-badge');
+
+        function triggerSimulation() {
+            const budget = budgetSlider.value;
+            const time = timeSlider.value;
+            const teamSize = teamSlider.value;
+            const skillLevel = skillSlider.value;
+
+            // Update label indicators instantly
+            valBudget.textContent = `$${budget}`;
+            valTime.textContent = `${time} hrs`;
+            valTeam.textContent = teamSize == 1 ? "1 person" : `${teamSize} people`;
+            valSkills.textContent = `${skillLevel}/10`;
+
+            const url = `{% url 'planner:what_if_simulate' active_project.id %}?budget=${budget}&time=${time}&team_size=${teamSize}&skill_level=${skillLevel}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const modified = data.modified;
+
+                        // Update Table Simulation Column
+                        tdSimReadiness.textContent = modified.readiness_score;
+                        tdSimCategory.textContent = modified.category;
+                        tdSimDifficulty.textContent = modified.difficulty;
+                        tdSimRealProb.textContent = `${modified.realistic_prob}%`;
+
+                        // Update Labels Detail Column
+                        lblSimTime.textContent = `${modified.time_score}/10`;
+                        lblSimBudget.textContent = `${modified.budget_score}/10`;
+                        lblSimSkills.textContent = `${modified.skill_score}/10`;
+                        lblSimRisk.textContent = `${modified.risk_level}/10`;
+
+                        // Update Main Circular Score Indicator
+                        readinessNumDisplay.textContent = modified.readiness_score;
+                        readinessCategoryBadge.textContent = modified.category;
+
+                        // Update Circle Stroke fill offset
+                        const offset = 314.16 - (314.16 * modified.readiness_score) / 100;
+                        readinessCircle.setAttribute('stroke-dashoffset', offset);
+
+                        // Update Circle Badge styling dynamically
+                        if (modified.readiness_score >= 71) {
+                            readinessCategoryBadge.style.backgroundColor = 'var(--green-light)';
+                            readinessCategoryBadge.style.color = 'var(--green)';
+                        } else if (modified.readiness_score >= 41) {
+                            readinessCategoryBadge.style.backgroundColor = 'var(--blue-light)';
+                            readinessCategoryBadge.style.color = 'var(--blue)';
+                        } else {
+                            readinessCategoryBadge.style.backgroundColor = 'var(--red-light)';
+                            readinessCategoryBadge.style.color = 'var(--red)';
+                        }
+
+                        // Update Sandbox Side-by-Side Chart Data
+                        sandboxChart.data.datasets[1].data = [
+                            modified.time_score,
+                            modified.budget_score,
+                            modified.skill_score,
+                            modified.risk_level
+                        ];
+                        sandboxChart.update();
+                    }
+                })
+                .catch(err => console.error("Sandbox simulation failed:", err));
+        }
+
+        // Attach listeners for slides change
+        budgetSlider.addEventListener('input', triggerSimulation);
+        timeSlider.addEventListener('input', triggerSimulation);
+        teamSlider.addEventListener('input', triggerSimulation);
+        skillSlider.addEventListener('input', triggerSimulation);
+
+        // --- 4. BRAINFORGE COACH CHATBOT HANDLERS ---
+        const chatbotTrigger = document.getElementById('chatbot-trigger');
+        const chatbotPanel = document.getElementById('chatbot-panel');
+        const chatbotMinimize = document.getElementById('chatbot-minimize');
+        const chatbotForm = document.getElementById('chatbot-form');
+        const chatbotInput = document.getElementById('chatbot-input');
+        const chatbotMessagesBox = document.getElementById('chatbot-messages-box');
+        const starterPrompts = document.querySelectorAll('.starter-prompt-pill');
+
+        // Toggle minimized/maximized state
+        chatbotTrigger.addEventListener('click', function() {
+            chatbotPanel.style.display = 'flex';
+            chatbotTrigger.style.display = 'none';
+            scrollToBottom();
+            chatbotInput.focus();
+        });
+
+        chatbotMinimize.addEventListener('click', function() {
+            chatbotPanel.style.display = 'none';
+            chatbotTrigger.style.display = 'flex';
+        });
+
+        // Scroll to bottom of message logs
+        function scrollToBottom() {
+            chatbotMessagesBox.scrollTop = chatbotMessagesBox.scrollHeight;
+        }
+
+        // Initially scroll to bottom on page load
+        scrollToBottom();
+
+        // Submit message handler
+        chatbotForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const messageText = chatbotInput.value.trim();
+            if (!messageText) return;
+            sendMessage(messageText);
+        });
+
+        // Click starter prompt handler
+        starterPrompts.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const promptText = this.getAttribute('data-prompt');
+                sendMessage(promptText);
+            });
+        });
+
+        function sendMessage(text) {
+            // Append User Message to UI
+            appendMessage('user', text);
+            chatbotInput.value = '';
+            
+            // Show Typing Indicator
+            const typingIndicator = showTypingIndicator();
+            scrollToBottom();
+
+            // Make POST request to endpoint
+            fetch('/api/chat/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    project_id: {{ active_project.id }},
+                    message: text
+                })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('API server returned error');
+                return res.json();
+            })
+            .then(data => {
+                // Remove Typing Indicator
+                typingIndicator.remove();
+                if (data.status === 'success') {
+                    appendMessage('coach', data.reply);
+                } else {
+                    appendMessage('coach', 'Sorry, I encountered an error processing that message. Please try again.');
+                }
+                scrollToBottom();
+            })
+            .catch(err => {
+                typingIndicator.remove();
+                console.error(err);
+                appendMessage('coach', 'Sorry, a connection problem occurred. Please make sure the server is online.');
+                scrollToBottom();
+            });
+        }
+
+        function appendMessage(role, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('chat-message');
+            msgDiv.classList.add(role === 'user' ? 'user-msg' : 'coach-msg');
+            
+            const contentP = document.createElement('p');
+            // Format linebreaks correctly in response
+            contentP.innerHTML = text.replace(/\n/g, '<br>');
+            msgDiv.appendChild(contentP);
+
+            const timeSpan = document.createElement('span');
+            timeSpan.classList.add('chat-time');
+            const now = new Date();
+            const hrs = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            timeSpan.textContent = `${hrs}:${mins}`;
+            msgDiv.appendChild(timeSpan);
+
+            chatbotMessagesBox.appendChild(msgDiv);
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.classList.add('chat-message', 'coach-msg', 'typing-indicator-msg');
+            typingDiv.innerHTML = `
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+            chatbotMessagesBox.appendChild(typingDiv);
+            return typingDiv;
+        }
+
+        // Helper to grab Django CSRF Cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}BrainForge AI - From Idea to Execution{% endblock %}
+
+{% block content %}
+<div class="dashboard-hero">
+    <div class="hero-content">
+        <h1>Transform Vague Ideas into <span class="text-gradient">Structured Execution Plans</span></h1>
+        <p class="hero-subtitle">Input your idea, timeline, and constraints. Our AI reasoning engine will analyze feasibility, assess risks, simulate scenarios, and generate a step-by-step roadmap to guide you from start to finish.</p>
+        <div style="margin-top: 24px; display: flex; gap: 16px; flex-wrap: wrap;">
+            <a href="#idea-submission-form" class="btn-submit" style="display: inline-block; padding: 12px 24px; background: var(--primary); color: white; border-radius: var(--radius-md); font-weight: 600; text-align: center;">
+                Start Planning
+            </a>
+            <a href="{% url 'planner:load_demo' %}" class="btn-secondary" style="display: inline-flex; align-items: center; justify-content: center; padding: 12px 24px; background: rgba(99, 102, 241, 0.1); border: 1.5px dashed var(--primary); color: var(--primary); border-radius: var(--radius-md); font-weight: 600; cursor: pointer; transition: var(--transition-smooth); text-align: center;">
+                🚀 Load Hackathon Demo
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="form-container-card">
+    <div class="card-header">
+        <span class="card-icon">⚡</span>
+        <h2>Start a New Plan</h2>
+    </div>
+    
+    <div id="form-error-alert" class="alert-message error-message hidden">
+        <span class="alert-icon">⚠️</span>
+        <span id="error-alert-text">An error occurred. Please check your inputs.</span>
+    </div>
+
+    <form id="idea-submission-form" action="{% url 'planner:create_project' %}" method="post">
+        {% csrf_token %}
+        
+        <div class="form-grid">
+            <!-- Left Side: Core Details -->
+            <div class="form-section">
+                <div class="form-group full-width">
+                    <label for="idea_name">Idea Name</label>
+                    <input type="text" id="idea_name" name="idea_name" placeholder="e.g. EcoGrocery Delivery App" required>
+                    <span class="field-error" id="error-idea_name"></span>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="description">Idea Description</label>
+                    <textarea id="description" name="description" rows="4" placeholder="Describe your idea in detail. What is it, who is it for, and how does it work?" required></textarea>
+                    <span class="field-error" id="error-description"></span>
+                </div>
+            </div>
+
+            <!-- Right Side: Constraints & Goals -->
+            <div class="form-section">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="time_available">Available Time (Hours/Week)</label>
+                        <input type="number" id="time_available" name="time_available" min="1" max="168" placeholder="e.g. 15" required>
+                        <span class="field-error" id="error-time_available"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="budget">Total Budget ($ USD)</label>
+                        <input type="number" id="budget" name="budget" min="0" placeholder="e.g. 1000" required>
+                        <span class="field-error" id="error-budget"></span>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="skills">Your Existing Skills</label>
+                    <input type="text" id="skills" name="skills" placeholder="e.g. Python, UI design, copywriting, basic HTML" required>
+                    <span class="field-help">Comma-separated list of skills you or your team already have.</span>
+                    <span class="field-error" id="error-skills"></span>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="goal">Primary Goal / Desired Outcome</label>
+                    <textarea id="goal" name="goal" rows="2" placeholder="e.g. Build an MVP and get 50 beta signups in 90 days." required></textarea>
+                    <span class="field-error" id="error-goal"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-submit">
+                <span class="btn-text">Forge Execution Plan</span>
+                <span class="btn-icon">⚡</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="info-section-grid">
+    <div class="info-card">
+        <span class="info-icon">🔍</span>
+        <h3>1. Clarification & Feasibility</h3>
+        <p>Analyze scope against your available budget and weekly schedule to ensure you're pursuing a realistic goal.</p>
+    </div>
+    <div class="info-card">
+        <span class="info-icon">🛡️</span>
+        <h3>2. Risk Mitigation</h3>
+        <p>Identify technical, resource, and market hurdles early, with actionable strategies to navigate around them.</p>
+    </div>
+    <div class="info-card">
+        <span class="info-icon">📈</span>
+        <h3>3. Scenarios & Roadmaps</h3>
+        <p>Simulate different potential outcomes (Optimistic, Realistic, Pessimistic) and generate a clear 30-60-90 day timeline.</p>
+    </div>
+</div>
+{% endblock %}
